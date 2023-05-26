@@ -1,3 +1,7 @@
+# DuckDB-Wasm + CodeMirror 6 + Tabulator + SvelteKit
+
+![Screenshot of output](page-scrot.png)
+
 A simple svelte-kit app to show loading DuckDB-Wasm, CodeMirror 6, and Tabulator using svelte-kit.
 
 Run locally:
