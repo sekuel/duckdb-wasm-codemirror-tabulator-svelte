@@ -51,7 +51,7 @@
 
 	$: results = new Promise(() => ({}));
 
-	let value = 'SELECT * from duckdb_functions()';
+	let value = 'SELECT * FROM duckdb_functions()';
 </script>
 
 <title>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</title>
