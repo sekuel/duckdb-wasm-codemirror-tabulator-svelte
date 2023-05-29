@@ -1,13 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
 	import { CodeMirror, sql } from '$lib/js/codemirror';
-	import { initDB } from '$lib/js/duckdb.js';
+	import { initDB, duckdb } from '$lib/js/duckdb.js';
 	import { TabulatorFull as Tabulator } from 'tabulator-tables';
 
 	async function load_db() {
 		try {
 			const db = await initDB();
-			const conn = await db.connect();
+			const conn = await db.connect(':memory:');
 			return conn;
 		} catch (error) {
 			console.error('Failed to initialize database:', error);
@@ -43,6 +43,42 @@
 		};
 	}
 
+	async function createTableFromFiles(file) {
+		const db = await initDB();
+		const fileExt = file.name.substring(file.name.lastIndexOf('.'));
+		try {
+			if (fileExt == '.parquet') {
+				await db.registerFileHandle(
+					file.name,
+					file,
+					duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+					true
+				);
+			} else if (fileExt == '.json') {
+				let json = await file.text();
+				await db.registerFileText(file.name, JSON.stringify(json));
+			} else if (fileExt == '.csv') {
+				let csv = await file.text();
+				await db.registerFileText(file.name, csv);
+			}
+		} catch {
+			results = new Promise((resolve, reject) => reject(error));
+		}
+	}
+
+	let files;
+
+	$: if (files) {
+		// Note that `files` is of type `FileList`, not an Array:
+		// https://developer.mozilla.org/en-US/docs/Web/API/FileList
+		console.log(files);
+
+		for (const file of files) {
+			console.log(file);
+			createTableFromFiles(file);
+		}
+	}
+
 	// Initialize database connection on component mount
 	let conn_prom;
 	onMount(async () => {
@@ -57,16 +93,21 @@
 <title>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</title>
 <div class="main">
 	<h1>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</h1>
-	<CodeMirror
-		bind:value
-		lang={sql()}
-		styles={{
-			'&': {
-				maxWidth: '100%',
-				height: '20rem'
-			}
-		}}
-	/>
+	<CodeMirror bind:value lang={sql()} styles={{ '&': { maxWidth: '100%', height: '20rem' } }} />
+
+
+	<div class="file-upload">
+		<label for="many">Upload local files (parquet, json, csv):</label>
+		<input bind:files id="many" multiple type="file" accept=".json, .parquet, .csv" />
+	</div>
+
+	{#if files}
+		<h3>Query file(s):</h3>
+		{#each Array.from(files) as file}
+			<p><code>SELECT * FROM '{file.name}'</code></p>
+			
+		{/each}
+	{/if}
 
 	<button on:click={() => execute(value)}> Execute </button>
 
@@ -86,7 +127,7 @@
 		max-width: 768px;
 	}
 
-	button {
+	button, input[type=file]::file-selector-button {
 		border: 1;
 		cursor: pointer;
 		color: #3c4257;
@@ -98,4 +139,12 @@
 		display: inline-block;
 		min-height: 28px;
 	}
+	
+	.file-upload {
+		display: block;
+		margin-top: 1rem;
+	}
+	label {
+			display: block;
+		}
 </style>
