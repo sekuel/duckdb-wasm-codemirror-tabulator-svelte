@@ -3,11 +3,14 @@
 	import { CodeMirror, sql } from '$lib/js/codemirror';
 	import { initDB, duckdb } from '$lib/js/duckdb.js';
 	import { TabulatorFull as Tabulator } from 'tabulator-tables';
+	import { tableFromJSON, tableFromArrays } from 'apache-arrow';
+
+	let conn;
 
 	async function load_db() {
 		try {
 			const db = await initDB();
-			const conn = await db.connect(':memory:');
+			conn = await db.connect(':memory:');
 			return conn;
 		} catch (error) {
 			console.error('Failed to initialize database:', error);
@@ -56,12 +59,15 @@
 				);
 			} else if (fileExt == '.json') {
 				let json = await file.text();
-				await db.registerFileText(file.name, JSON.stringify(json));
+				const encoder = new TextEncoder();
+				const buffer = encoder.encode(JSON.stringify(JSON.parse(json)));
+				await db.registerFileBuffer(file.name, buffer);
+				await conn.insertJSONFromPath(file.name, { schema: 'main', name: file.name });
 			} else if (fileExt == '.csv') {
 				let csv = await file.text();
 				await db.registerFileText(file.name, csv);
 			}
-		} catch {
+		} catch (error) {
 			results = new Promise((resolve, reject) => reject(error));
 		}
 	}
@@ -69,13 +75,10 @@
 	let files;
 
 	$: if (files) {
-		// Note that `files` is of type `FileList`, not an Array:
-		// https://developer.mozilla.org/en-US/docs/Web/API/FileList
-		console.log(files);
-
+		value += '\n'
 		for (const file of files) {
-			console.log(file);
 			createTableFromFiles(file);
+			value += `-- SELECT * FROM ${file.name} \n`
 		}
 	}
 
@@ -86,28 +89,19 @@
 	});
 
 	$: results = new Promise(() => ({}));
-
-	let value = 'SELECT * FROM duckdb_functions()';
+	$: value = 'SELECT * FROM duckdb_functions()';
+	$: placeholder = ''
 </script>
 
 <title>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</title>
 <div class="main">
 	<h1>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</h1>
-	<CodeMirror bind:value lang={sql()} styles={{ '&': { maxWidth: '100%', height: '20rem' } }} />
-
+	<CodeMirror bind:value bind:placeholder lang={sql()} styles={{ '&': { maxWidth: '100%', height: '20rem' } }} />
 
 	<div class="file-upload">
 		<label for="many">Upload local files (parquet, json, csv):</label>
 		<input bind:files id="many" multiple type="file" accept=".json, .parquet, .csv" />
 	</div>
-
-	{#if files}
-		<h3>Query file(s):</h3>
-		{#each Array.from(files) as file}
-			<p><code>SELECT * FROM '{file.name}'</code></p>
-			
-		{/each}
-	{/if}
 
 	<button on:click={() => execute(value)}> Execute </button>
 
@@ -127,7 +121,8 @@
 		max-width: 768px;
 	}
 
-	button, input[type=file]::file-selector-button {
+	button,
+	input[type='file']::file-selector-button {
 		border: 1;
 		cursor: pointer;
 		color: #3c4257;
@@ -139,12 +134,12 @@
 		display: inline-block;
 		min-height: 28px;
 	}
-	
+
 	.file-upload {
 		display: block;
 		margin-top: 1rem;
 	}
 	label {
-			display: block;
-		}
+		display: block;
+	}
 </style>
