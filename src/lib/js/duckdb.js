@@ -1,6 +1,6 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
-import duckdb_wasm from '/node_modules/@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
-import duckdb_worker from '/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?worker';
+import duckdb_wasm from '/node_modules/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
+import duckdb_worker from '/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?worker';
 
 let db = null;
 
@@ -17,4 +17,4 @@ const initDB = async () => {
 	return db;
 };
 
-export { initDB };
+export { initDB, duckdb };
