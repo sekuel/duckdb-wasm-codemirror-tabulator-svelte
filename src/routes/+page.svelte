@@ -3,7 +3,6 @@
 	import { CodeMirror, sql } from '$lib/js/codemirror';
 	import { initDB, duckdb } from '$lib/js/duckdb.js';
 	import { TabulatorFull as Tabulator } from 'tabulator-tables';
-	import { tableFromJSON, tableFromArrays } from 'apache-arrow';
 
 	let conn;
 
@@ -19,6 +18,21 @@
 	}
 
 	async function execute(query) {
+		const urlPattern = /(https?:\/\/[^\s\/$.?#].[^\s]*\.json)/i;
+		const match = query.match(urlPattern);
+		if (match) {
+			const url = match[1];
+			console.log('JSON URL:', url);
+			try {
+			let response = await fetch(url);
+			let json = await response.json()
+			const db = await initDB();
+			await db.registerFileText(url, JSON.stringify((json)));
+			await conn.insertJSONFromPath(url, { schema: 'main', name: url });
+			} catch (error) {
+				results = new Promise((resolve, reject) => reject(error));
+			}
+		}
 		try {
 			const conn = await conn_prom;
 			const res = await conn.query(query);
@@ -59,9 +73,7 @@
 				);
 			} else if (fileExt == '.json') {
 				let json = await file.text();
-				const encoder = new TextEncoder();
-				const buffer = encoder.encode(JSON.stringify(JSON.parse(json)));
-				await db.registerFileBuffer(file.name, buffer);
+				await db.registerFileText(file.name, JSON.stringify(JSON.parse(json)));
 				await conn.insertJSONFromPath(file.name, { schema: 'main', name: file.name });
 			} else if (fileExt == '.csv') {
 				let csv = await file.text();
@@ -75,14 +87,11 @@
 	let files;
 
 	$: if (files) {
-		value += '\n'
 		for (const file of files) {
 			createTableFromFiles(file);
-			value += `-- SELECT * FROM ${file.name} \n`
 		}
 	}
 
-	// Initialize database connection on component mount
 	let conn_prom;
 	onMount(async () => {
 		conn_prom = load_db();
@@ -90,13 +99,18 @@
 
 	$: results = new Promise(() => ({}));
 	$: value = 'SELECT * FROM duckdb_functions()';
-	$: placeholder = ''
+	$: placeholder = '';
 </script>
 
 <title>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</title>
 <div class="main">
 	<h1>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</h1>
-	<CodeMirror bind:value bind:placeholder lang={sql()} styles={{ '&': { maxWidth: '100%', height: '20rem' } }} />
+	<CodeMirror
+		bind:value
+		bind:placeholder
+		lang={sql()}
+		styles={{ '&': { maxWidth: '100%', height: '20rem' } }}
+	/>
 
 	<div class="file-upload">
 		<label for="many">Upload local files (parquet, json, csv):</label>
