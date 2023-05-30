@@ -24,11 +24,11 @@
 			const url = match[1];
 			console.log('JSON URL:', url);
 			try {
-			let response = await fetch(url);
-			let json = await response.json()
-			const db = await initDB();
-			await db.registerFileText(url, JSON.stringify((json)));
-			await conn.insertJSONFromPath(url, { schema: 'main', name: url });
+				let response = await fetch(url);
+				let json = await response.json();
+				const db = await initDB();
+				await db.registerFileText(url, JSON.stringify(json));
+				await conn.insertJSONFromPath(url, { schema: 'main', name: url });
 			} catch (error) {
 				results = new Promise((resolve, reject) => reject(error));
 			}
@@ -97,6 +97,22 @@
 		conn_prom = load_db();
 	});
 
+	async function fetchData(query) {
+		const db = await initDB();
+		const conn = await db.connect();
+		conn.send(`COPY (${query}) TO 'result-snappy.parquet' (FORMAT 'parquet');`);
+		const parquet_buffer = await db.copyFileToBuffer('result-snappy.parquet');
+		let fileUrl = URL.createObjectURL(new Blob([parquet_buffer]));
+		let fileName = 'result-snappy.parquet';
+
+		await conn.close();
+
+		const link = document.createElement('a');
+		link.href = fileUrl;
+		link.download = fileName;
+		link.click();
+	}
+
 	$: results = new Promise(() => ({}));
 	$: value = 'SELECT * FROM duckdb_functions()';
 	$: placeholder = '';
@@ -112,13 +128,12 @@
 		styles={{ '&': { maxWidth: '100%', height: '20rem' } }}
 	/>
 
+	<button on:click={() => execute(value)}> Execute </button>
+	<button on:click={fetchData(value)}>Export as Parquet</button>
 	<div class="file-upload">
 		<label for="many">Upload local files (parquet, json, csv):</label>
 		<input bind:files id="many" multiple type="file" accept=".json, .parquet, .csv" />
 	</div>
-
-	<button on:click={() => execute(value)}> Execute </button>
-
 	{#await results then r}
 		<div use:tableAction={{ data: r.rows, columns: r.columns }} />
 	{:catch error}
