@@ -128,12 +128,13 @@
 		styles={{ '&': { maxWidth: '100%', height: '20rem' } }}
 	/>
 
-	<button on:click={() => execute(value)}> Execute </button>
-	<button on:click={fetchData(value)}>Export as Parquet</button>
-	<div class="file-upload">
+	<button on:click={() => execute(value)} title="Execute Query"> Execute </button>
+	<button on:click={fetchData(value)} title="Export Query as Parquet File">Export as Parquet</button>
+	<input bind:files id="many" multiple type="file" accept=".json, .parquet, .csv" title="Query your local parquet, csv, json. Your data will not be sent out of the device you are using."/>
+
+	<!-- <div class="file-upload">
 		<label for="many">Upload local files (parquet, json, csv):</label>
-		<input bind:files id="many" multiple type="file" accept=".json, .parquet, .csv" />
-	</div>
+	</div> -->
 	{#await results then r}
 		<div use:tableAction={{ data: r.rows, columns: r.columns }} />
 	{:catch error}
@@ -162,13 +163,5 @@
 		padding: 4px 8px;
 		display: inline-block;
 		min-height: 28px;
-	}
-
-	.file-upload {
-		display: block;
-		margin-top: 1rem;
-	}
-	label {
-		display: block;
 	}
 </style>
