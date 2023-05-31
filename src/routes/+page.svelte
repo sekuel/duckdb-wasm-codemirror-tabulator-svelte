@@ -5,6 +5,10 @@
 	import { TabulatorFull as Tabulator } from 'tabulator-tables';
 
 	let conn;
+	let conn_prom;
+	onMount(async () => {
+		conn_prom = load_db();
+	});
 
 	async function load_db() {
 		try {
@@ -79,23 +83,13 @@
 				let csv = await file.text();
 				await db.registerFileText(file.name, csv);
 			}
+			await conn.query(`CREATE OR REPLACE TABLE '${file.name}' AS (SELECT * FROM '${file.name}')`);
+			tables = getTables();
+
 		} catch (error) {
 			results = new Promise((resolve, reject) => reject(error));
 		}
 	}
-
-	let files;
-
-	$: if (files) {
-		for (const file of files) {
-			createTableFromFiles(file);
-		}
-	}
-
-	let conn_prom;
-	onMount(async () => {
-		conn_prom = load_db();
-	});
 
 	async function fetchData(query) {
 		const db = await initDB();
@@ -113,6 +107,24 @@
 		link.click();
 	}
 
+	async function getTables() {
+		const db = await initDB();
+		const conn = await db.connect();
+		const res = await conn.query('SHOW TABLES');
+		tables = {
+			rows: res.toArray().map((r) => Object.fromEntries(r)),
+			columns: res.schema.fields.map((r) => ({ title: r.name, field: r.name }))
+		};
+	}
+
+	let files;
+	$: tables = new Promise(() => ({}));
+
+	$: if (files) {
+		for (const file of files) {
+			createTableFromFiles(file);
+		}
+	}
 	$: results = new Promise(() => ({}));
 	$: value = 'SELECT * FROM duckdb_functions()';
 	$: placeholder = '';
@@ -121,6 +133,25 @@
 <title>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</title>
 <div class="main">
 	<h1>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</h1>
+	<input
+		bind:files
+		id="many"
+		multiple
+		type="file"
+		accept=".json, .parquet, .csv"
+		title="Query your local parquet, csv, json. Your data will not be sent out of the device you are using."
+	/>
+	{#await tables then table}
+		<code>
+			<p>Available tables:</p>
+			<ul>
+				{#each Array.from(table.rows) as t}
+					<li>'{t.name}'</li>
+				{/each}
+			</ul>
+		</code>
+	{/await}
+
 	<CodeMirror
 		bind:value
 		bind:placeholder
@@ -128,9 +159,16 @@
 		styles={{ '&': { maxWidth: '100%', height: '20rem' } }}
 	/>
 
-	<button on:click={() => execute(value)} title="Execute Query"> Execute </button>
-	<button on:click={fetchData(value)} title="Export Query as Parquet File">Export as Parquet</button>
-	<input bind:files id="many" multiple type="file" accept=".json, .parquet, .csv" title="Query your local parquet, csv, json. Your data will not be sent out of the device you are using."/>
+	<button
+		on:click={() => {
+			execute(value);
+		}}
+		title="Execute Query"
+	>
+		Execute
+	</button>
+	<button on:click={fetchData(value)} title="Export Query as Parquet File">Export as Parquet</button
+	>
 
 	<!-- <div class="file-upload">
 		<label for="many">Upload local files (parquet, json, csv):</label>
