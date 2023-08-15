@@ -1,6 +1,6 @@
-import * as duckdb from '@duckdb/duckdb-wasm';
-import duckdb_wasm from '/node_modules/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
-import duckdb_worker from '/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?worker';
+import * as duckdb from '@braintrust/duckdb-wasm';
+import duckdb_wasm from '/node_modules/@braintrust/duckdb-wasm/dist/duckdb-eh.wasm?url';
+import duckdb_worker from '/node_modules/@braintrust/duckdb-wasm/dist/duckdb-browser-eh.worker.js?worker';
 
 let db = null;
 
