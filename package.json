@@ -11,7 +11,7 @@
 	},
 	"devDependencies": {
 		"@codemirror/lang-sql": "^6.5.0",
-		"@duckdb/duckdb-wasm": "^1.26.0",
+		"@duckdb/duckdb-wasm": "^1.27.0",
 		"@sveltejs/adapter-auto": "^2.0.0",
 		"@sveltejs/kit": "^1.5.0",
 		"eslint": "^8.28.0",
