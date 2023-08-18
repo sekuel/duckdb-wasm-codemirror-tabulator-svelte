@@ -192,7 +192,7 @@
 		}
 	}
 	$: results = new Promise(() => ({}));
-	$: value = 'SELECT * FROM duckdb_functions()';
+	$: value = 'SELECT * FROM sample.firebase_events LIMIT 1000;';
 	$: placeholder = '';
 	$: status = '';
 </script>
