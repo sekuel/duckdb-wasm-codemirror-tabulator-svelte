@@ -21,6 +21,26 @@
 		}
 	}
 
+	function transformRows(schema, rows) {
+		return rows.map(row => {
+			const transformedRow = {};
+			schema.forEach(column => {
+			const columnName = column.field;
+			const value = row[columnName];
+			
+			if (column.type === "Date") {
+				transformedRow[columnName] = new Date(value).toISOString().split('T')[0];
+			} else if (column.type === "Timestamp") {
+				const timestampDate = new Date(value);
+				transformedRow[columnName] = timestampDate.toISOString();
+			} else {
+				transformedRow[columnName] = value;
+			}
+			});
+			return transformedRow;
+		});
+	}
+
 	async function execute(query) {
 		const urlPattern = /(https?:\/\/[^\s\/$.?#].[^\s]*\.json)/i;
 		const match = query.match(urlPattern);
@@ -40,8 +60,11 @@
 		try {
 			const conn = await conn_prom;
 			const res = await conn.query(query);
+			const rows = res.toArray().map((r) => Object.fromEntries(r));
+			const schema = res.schema.fields.map((r) => ({ title: r.name, field: r.name, type: r.type.constructor[Symbol.toStringTag]}))
+			const transformedRows = transformRows(schema, rows)
 			results = {
-				rows: res.toArray().map((r) => Object.fromEntries(r)),
+				rows: transformedRows,
 				columns: res.schema.fields.map((r) => ({ title: r.name, field: r.name }))
 			};
 		} catch (error) {
@@ -85,7 +108,6 @@
 			}
 			await conn.query(`CREATE OR REPLACE TABLE '${file.name}' AS (SELECT * FROM '${file.name}')`);
 			tables = getTables();
-
 		} catch (error) {
 			results = new Promise((resolve, reject) => reject(error));
 		}
