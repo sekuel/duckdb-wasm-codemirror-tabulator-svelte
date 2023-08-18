@@ -12,8 +12,33 @@
 
 	async function load_db() {
 		try {
+			status = 'Instantiating DuckDB...'
 			const db = await initDB();
 			conn = await db.connect(':memory:');
+			if (conn) {
+				status = 'DuckDB Instantiated'
+			}
+			conn.query(`CREATE SCHEMA sample;`);
+			conn.query(`
+			CREATE VIEW sample.firebase_events AS (
+				SELECT 
+					epoch_ms((event_timestamp/1000)::BIGINT)::DATE AS event_date,
+					event_timestamp::BIGINT AS event_timestamp,
+					user_pseudo_id,
+					platform,
+					country,
+					event_name,
+					event_params,
+					epoch_ms((up__first_open_time/1000)::BIGINT)::DATE AS up__first_open_date,
+					up__first_open_time::BIGINT AS up__first_open_time,
+					up__num_levels_available,
+					up__firebase_last_notification::BIGINT up__firebase_last_notification,
+					up__plays_progressive::BOOL AS up__plays_profressive,
+					up__plays_quickplay::BOOL AS up__plays_quickplay,
+					up__initial_extra_steps::BOOL AS up__initial_extra_steps
+				FROM 'https://storage.sekuel.com/firebase:firebase_data.parquet'
+			);
+			`);
 			return conn;
 		} catch (error) {
 			console.error('Failed to initialize database:', error);
@@ -44,6 +69,7 @@
 	}
 
 	async function execute(query) {
+		status = 'Executing query...';
 		const urlPattern = /(https?:\/\/[^\s\/$.?#].[^\s]*\.json)/i;
 		const match = query.match(urlPattern);
 		if (match) {
@@ -61,6 +87,7 @@
 		}
 		try {
 			const conn = await conn_prom;
+			let startTime = Date.now();
 			const res = await conn.query(query);
 			const rows = res.toArray().map((r) => Object.fromEntries(r));
 			const schema = res.schema.fields.map((r) => ({
@@ -76,6 +103,14 @@
 				rows: transformedRows,
 				columns: res.schema.fields.map((r) => ({ title: r.name, field: r.name }))
 			};
+
+			if (results) {
+				let endTime = Date.now();
+				let executionTime = endTime - startTime
+				status = `Query executed in ${executionTime} ms`;
+			} else {
+				status = ''
+			}
 		} catch (error) {
 			results = new Promise((resolve, reject) => reject(error));
 		}
@@ -159,6 +194,7 @@
 	$: results = new Promise(() => ({}));
 	$: value = 'SELECT * FROM duckdb_functions()';
 	$: placeholder = '';
+	$: status = '';
 </script>
 
 <title>DuckDB-Wasm Playground with CodeMirror 6 & Tabulator</title>
@@ -198,9 +234,8 @@
 	>
 		Execute
 	</button>
-	<button on:click={fetchData(value)} title="Export Query as Parquet File">Export as Parquet</button
-	>
-
+	<button on:click={fetchData(value)} title="Export Query as Parquet File">Export as Parquet</button>
+	<span>{status}</span>
 	<!-- <div class="file-upload">
 		<label for="many">Upload local files (parquet, json, csv):</label>
 	</div> -->
