@@ -22,20 +22,22 @@
 	}
 
 	function transformRows(schema, rows) {
-		return rows.map(row => {
+		return rows.map((row) => {
 			const transformedRow = {};
-			schema.forEach(column => {
-			const columnName = column.field;
-			const value = row[columnName];
-			
-			if (column.type === "Date") {
-				transformedRow[columnName] = new Date(value).toISOString().split('T')[0];
-			} else if (column.type === "Timestamp") {
-				const timestampDate = new Date(value);
-				transformedRow[columnName] = timestampDate.toISOString();
-			} else {
-				transformedRow[columnName] = value;
-			}
+			schema.forEach((column) => {
+				const columnName = column.field;
+				const value = row[columnName];
+
+				if (column.type === 'Date') {
+					transformedRow[columnName] = new Date(value).toISOString().split('T')[0];
+				} else if (column.type === 'Timestamp') {
+					const timestampDate = new Date(value);
+					transformedRow[columnName] = timestampDate.toISOString();
+				} else if (column.type === 'Interval') {
+					transformedRow[columnName] = new String(value)
+				} else {
+					transformedRow[columnName] = value;
+				}
 			});
 			return transformedRow;
 		});
@@ -61,8 +63,15 @@
 			const conn = await conn_prom;
 			const res = await conn.query(query);
 			const rows = res.toArray().map((r) => Object.fromEntries(r));
-			const schema = res.schema.fields.map((r) => ({ title: r.name, field: r.name, type: r.type.constructor[Symbol.toStringTag]}))
-			const transformedRows = transformRows(schema, rows)
+			const schema = res.schema.fields.map((r) => ({
+				title: r.name,
+				field: r.name,
+				type: r.type.constructor[Symbol.toStringTag]
+			}));
+			
+			const transformedRows = transformRows(schema, rows);
+			// console.log(schema);
+			// console.log(transformedRows);
 			results = {
 				rows: transformedRows,
 				columns: res.schema.fields.map((r) => ({ title: r.name, field: r.name }))
