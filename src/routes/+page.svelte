@@ -113,6 +113,7 @@
 			}
 		} catch (error) {
 			results = new Promise((resolve, reject) => reject(error));
+			status = 'Error'
 		}
 	}
 
