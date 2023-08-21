@@ -19,6 +19,7 @@
 				status = 'DuckDB Instantiated'
 			}
 			conn.query(`CREATE SCHEMA sample;`);
+			conn.query(`CREATE SCHEMA indonesia;`);
 			conn.query(`
 			CREATE VIEW sample.firebase_events AS (
 				SELECT 
@@ -37,6 +38,9 @@
 					up__plays_quickplay::BOOL AS up__plays_quickplay,
 					up__initial_extra_steps::BOOL AS up__initial_extra_steps
 				FROM 'https://storage.sekuel.com/firebase:firebase_data.parquet'
+			);
+			CREATE VIEW indonesia.mosque_mushalla_202212 AS (
+				SELECT * FROM 'https://storage.sekuel.com/indonesia:mosque_mushalla_202212.parquet'
 			);
 			`);
 			return conn;
@@ -193,7 +197,7 @@
 		}
 	}
 	$: results = new Promise(() => ({}));
-	$: value = 'SELECT * FROM sample.firebase_events LIMIT 1000;';
+	$: value = 'SHOW ALL TABLES;';
 	$: placeholder = '';
 	$: status = '';
 </script>
